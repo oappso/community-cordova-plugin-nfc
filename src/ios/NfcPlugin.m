@@ -403,7 +403,7 @@
             [self closeSession:session withError:[self localizeString:@"NFCNotNdefCompliant" defaultValue:@"Tag is not NDEF compliant."]];  // alternate message "Tag does not support NDEF."
             break;
         case NFCNDEFStatusReadOnly:
-            [self closeSession:session withError:[self localizeString:@"NFCReadOnlyTag" defaultValue:@"Tag is read only."]];
+            [self closeSession:session withError:[self localizeString:@"NFCReadOnlyTag" defaultValue:@"Tag has already been written."]];
             break;
         case NFCNDEFStatusReadWrite: {
             
@@ -412,7 +412,7 @@
                     NSLog(@"%@", error);
                     [self closeSession:session withError:[self localizeString:@"NFCDataWriteFailed" defaultValue:@"Write failed."]];
                 } else {
-                    session.alertMessage = [self localizeString:@"NFCDataWrote" defaultValue:@"Completed."];
+                    session.alertMessage = [self localizeString:@"NFCDataWrote" defaultValue:@"Tag successfully written."];
                      if(self.makeReadOnly) {
                         [tag writeLockWithCompletionHandler:^(NSError * _Nullable error) {
                             if (error) {
