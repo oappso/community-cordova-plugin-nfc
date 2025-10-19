@@ -412,7 +412,7 @@
                     NSLog(@"%@", error);
                     [self closeSession:session withError:[self localizeString:@"NFCDataWriteFailed" defaultValue:@"Write failed."]];
                 } else {
-                    session.alertMessage = [self localizeString:@"NFCDataWrote" defaultValue:@"Wrote data to NFC tag."];
+                    session.alertMessage = [self localizeString:@"NFCDataWrote" defaultValue:@"Completed."];
                      if(self.makeReadOnly) {
                         [tag writeLockWithCompletionHandler:^(NSError * _Nullable error) {
                             if (error) {
