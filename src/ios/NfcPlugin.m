@@ -204,68 +204,6 @@
 }
 
 
-
-#pragma mark - Raw Transceive for MiFare / Type2
-
-- (void)transceive:(CDVInvokedUrlCommand*)command API_AVAILABLE(ios(13.0)) {
-    NSLog(@"transceive called");
-
-    NSString *hexString = [command argumentAtIndex:0];
-    if (!hexString || hexString.length < 2) {
-        CDVPluginResult *badArgs = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Missing hex command"];
-        [self.commandDelegate sendPluginResult:badArgs callbackId:command.callbackId];
-        return;
-    }
-
-    // Convert hex string like "A2E880000400" → NSData
-    NSMutableData *data = [NSMutableData data];
-    for (int i = 0; i < hexString.length; i += 2) {
-        NSString *byteString = [hexString substringWithRange:NSMakeRange(i, 2)];
-        unsigned int num;
-        [[NSScanner scannerWithString:byteString] scanHexInt:&num];
-        uint8_t b = (uint8_t)num;
-        [data appendBytes:&b length:1];
-    }
-
-    if (!self.nfcSession || ![self.nfcSession isKindOfClass:[NFCTagReaderSession class]]) {
-        CDVPluginResult *noSession = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"No active NFCTagReaderSession"];
-        [self.commandDelegate sendPluginResult:noSession callbackId:command.callbackId];
-        return;
-    }
-
-    NFCTagReaderSession *tagSession = (NFCTagReaderSession*)self.nfcSession;
-    if (@available(iOS 13.0, *)) {
-        NSArray<NFCTag*> *tags = [tagSession valueForKey:@"connectedTag"];
-        id<NFCTag> tag = tags.firstObject;
-        if (tag.type != NFCTagTypeMiFare) {
-            CDVPluginResult *wrongType = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Tag is not MiFare / Type2"];
-            [self.commandDelegate sendPluginResult:wrongType callbackId:command.callbackId];
-            return;
-        }
-
-        id<NFCMiFareTag> miTag = [tag asNFCMiFareTag];
-        [miTag sendMiFareCommandWithCommandPacket:data completionHandler:^(NSData * _Nullable response, NSError * _Nullable error) {
-            if (error) {
-                NSLog(@"transceive error %@", error);
-                CDVPluginResult *fail = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
-                [self.commandDelegate sendPluginResult:fail callbackId:command.callbackId];
-            } else {
-                // Convert response to hex string
-                const unsigned char *bytes = response.bytes;
-                NSMutableString *out = [NSMutableString string];
-                for (NSUInteger i = 0; i < response.length; i++) {
-                    [out appendFormat:@"%02X", bytes[i]];
-                }
-                CDVPluginResult *ok = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:out];
-                [self.commandDelegate sendPluginResult:ok callbackId:command.callbackId];
-            }
-        }];
-    }
-}
-
-
-
-
 #pragma mark - NFCNDEFReaderSessionDelegate
 
 // iOS 11 & 12
