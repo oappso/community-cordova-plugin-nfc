@@ -203,7 +203,6 @@
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
-
 #pragma mark - NFCNDEFReaderSessionDelegate
 
 // iOS 11 & 12
