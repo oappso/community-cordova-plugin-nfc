@@ -134,10 +134,6 @@
         <header-file src="src/ios/NfcPlugin.h" />
         <source-file src="src/ios/NfcPlugin.m" />
 
-        <!-- Add JavaScript interface for nfc.transceive -->
-        <js-module src="www/nfc.js" name="nfc">
-            <clobbers target="nfc" />
-        </js-module>
 
         <framework src="CoreNFC.framework" weak="true" />
 
