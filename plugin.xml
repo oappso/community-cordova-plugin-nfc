@@ -119,7 +119,6 @@
             <array>
                 <string>NDEF</string>
                 <string>TAG</string>
-                <string>MiFare</string>
             </array>
         </config-file>
         <config-file parent="com.apple.developer.nfc.readersession.formats"
@@ -127,7 +126,6 @@
             <array>
                 <string>NDEF</string>
                 <string>TAG</string>
-                <string>MiFare</string>
             </array>
         </config-file>
 
