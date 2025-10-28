@@ -449,6 +449,10 @@ var nfc = {
         }
     },
 
+    transceive: function (hexCmd, success, failure) {
+        cordova.exec(success, failure, "NfcPlugin", "transceive", [hexCmd]);
+    },
+
     makeReadOnly: function (win, fail) {
         cordova.exec(win, fail, "NfcPlugin", "makeReadOnly", []);
     },
