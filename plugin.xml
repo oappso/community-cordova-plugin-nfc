@@ -3,17 +3,16 @@
     xmlns="http://www.phonegap.com/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="community-cordova-plugin-nfc"
-    version="1.4.0">
+    version="1.4.1">
 
     <name>NFC</name>
-
     <description>Near Field Communication (NFC) Plugin. Read and write NDEF messages to NFC tags and share NDEF messages with peers.</description>
-
     <license>MIT</license>
     <keywords>nfc, NFC, NDEF</keywords>
-    <repo>https://github.com/EYALIN/community-cordova-plugin-nfc.git.git</repo>
-    <issue>https://github.com/EYALIN/community-cordova-plugin-nfc.git/issues</issue>
+    <repo>https://github.com/EYALIN/community-cordova-plugin-nfc.git</repo>
+    <issue>https://github.com/EYALIN/community-cordova-plugin-nfc/issues</issue>
 
+    <!-- ANDROID -->
     <platform name="android">
         <js-module src="www/phonegap-nfc.js" name="NFC">
             <runs />
@@ -21,7 +20,7 @@
 
         <config-file target="res/xml/config.xml" parent="/*">
             <feature name="NfcPlugin">
-                <param name="android-package" value="com.chariotsolutions.nfc.plugin.NfcPlugin"/>
+                <param name="android-package" value="com.chariotsolutions.nfc.plugin.NfcPlugin" />
                 <param name="onload" value="true" />
             </feature>
         </config-file>
@@ -35,9 +34,9 @@
             <uses-permission android:name="android.permission.NFC"/>
             <uses-feature android:name="android.hardware.nfc" android:required="false"/>
         </config-file>
-
     </platform>
 
+    <!-- WINDOWS PHONE 8 -->
     <platform name="wp8">
         <js-module src="www/phonegap-nfc.js" name="NFC">
             <runs />
@@ -55,10 +54,9 @@
 
         <source-file src="src/windows-phone-8/Ndef.cs" />
         <source-file src="src/windows-phone-8/NfcPlugin.cs" />
-
     </platform>
 
-    <!-- windows -->
+    <!-- WINDOWS -->
     <platform name="windows">
         <js-module src="www/phonegap-nfc.js" name="NFC">
             <runs />
@@ -88,24 +86,22 @@
         </js-module>
     </platform>
 
+    <!-- BLACKBERRY 10 -->
     <platform name="blackberry10">
         <js-module src="www/phonegap-nfc.js" name="NFC">
             <runs />
         </js-module>
-        <!-- override defaults for BB10 -->
         <js-module src="www/phonegap-nfc-blackberry.js" name="NFCBB10">
             <runs />
         </js-module>
-
-        <!-- "native" implementation -->
         <source-file src="src/blackberry10/index.js" />
 
         <config-file target="www/config.xml" parent="/widget">
-            <!-- Note: mapping is broken in Cordova 3.1.0-0.2.0 -->
             <feature name="NfcPlugin" value="com.chariotsolutions.nfc.plugin" />
         </config-file>
     </platform>
 
+    <!-- iOS -->
     <platform name="ios">
         <js-module src="www/phonegap-nfc.js" name="NFC">
             <runs />
@@ -117,31 +113,37 @@
             </feature>
         </config-file>
 
-        <!-- https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_developer_nfc_readersession_formats?language=objc -->
-        <config-file parent="com.apple.developer.nfc.readersession.formats" platform="ios" target="*-Debug.plist">
+        <!-- Add MiFare entitlement for raw transceive -->
+        <config-file parent="com.apple.developer.nfc.readersession.formats"
+                     platform="ios" target="*-Debug.plist">
             <array>
                 <string>NDEF</string>
-                <string>TAG</string>  
+                <string>TAG</string>
+                <string>MiFare</string>
             </array>
         </config-file>
-        <config-file parent="com.apple.developer.nfc.readersession.formats" platform="ios" target="*-Release.plist">
+        <config-file parent="com.apple.developer.nfc.readersession.formats"
+                     platform="ios" target="*-Release.plist">
             <array>
                 <string>NDEF</string>
-                <string>TAG</string>  
+                <string>TAG</string>
+                <string>MiFare</string>
             </array>
         </config-file>
-        
+
         <header-file src="src/ios/NfcPlugin.h" />
         <source-file src="src/ios/NfcPlugin.m" />
 
-        <!-- frameworks -->
+        <!-- Add JavaScript interface for nfc.transceive -->
+        <js-module src="www/nfc.js" name="nfc">
+            <clobbers target="nfc" />
+        </js-module>
+
         <framework src="CoreNFC.framework" weak="true" />
 
-        <preference name="NFC_USAGE_DESCRIPTION" default="Read NFC Tags" />
+        <preference name="NFC_USAGE_DESCRIPTION" default="Read and write NFC Tags" />
         <config-file target="*-Info.plist" parent="NFCReaderUsageDescription">
             <string>$NFC_USAGE_DESCRIPTION</string>
         </config-file>
     </platform>
-
-
 </plugin>
