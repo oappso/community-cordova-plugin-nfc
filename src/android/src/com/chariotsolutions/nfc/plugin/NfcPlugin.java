@@ -439,10 +439,12 @@ private void writeNdefMessage(final NdefMessage message, final Tag tag, final Ca
             ndef.close();
             callbackContext.success();
 
-        } catch (Exception e) {
-    String msg = (e.getMessage() != null) ? e.getMessage() : e.toString();
-    Log.e(TAG, "NFC write failed: " + msg, e);
-    callbackContext.error("Write error: " + msg);
+} catch (Exception e) {
+    StringWriter sw = new StringWriter();
+    e.printStackTrace(new PrintWriter(sw));
+    String fullError = sw.toString();
+    Log.e(TAG, "NFC write failed\n" + fullError);
+    callbackContext.error("NFC write failed:\n" + fullError);
 }
     });
 }
