@@ -379,17 +379,16 @@ public class NfcPlugin extends CordovaPlugin {
         writeNdefMessage(new NdefMessage(records), tag, callbackContext);
     }
 
+    
 private void writeNdefMessage(final NdefMessage message, final Tag tag, final CallbackContext callbackContext) {
     cordova.getThreadPool().execute(() -> {
         try {
-            Log.d(TAG, "Starting NFC write task...");
             Ndef ndef = Ndef.get(tag);
             if (ndef == null) {
                 callbackContext.error("Tag does not support NDEF");
                 return;
             }
             ndef.connect();
-            Log.d(TAG, "Tag connected");
 
             if (!ndef.isWritable()) {
                 callbackContext.error("Tag is already read-only");
@@ -397,40 +396,9 @@ private void writeNdefMessage(final NdefMessage message, final Tag tag, final Ca
                 return;
             }
 
-            // === Step 1: read hardware counter (before write) ===
-            int counterValue = 0;
-            try {
-                NfcA nfca = NfcA.get(tag);
-                if (nfca != null) {
-                    nfca.connect();
-                    byte[] cmd = new byte[]{ (byte) 0x39, (byte) 0x00 }; // read counter cmd
-                    byte[] resp = nfca.transceive(cmd);
-                    // full 24-bit counter
-                    counterValue = ((resp[0] & 0xFF) << 16) |
-                                   ((resp[1] & 0xFF) << 8) |
-                                   (resp[2] & 0xFF);
-                    Log.d(TAG, "Tag counter value = " + counterValue);
-                    nfca.close();
-                }
-            } catch (Exception e) {
-                Log.w(TAG, "Counter read failed: " + e.getMessage());
-            }
-
-            // === Step 2: rebuild URL with counter ===
-            String baseUrl = new String(message.getRecords()[0].getPayload());
-            baseUrl = baseUrl.replaceFirst("^en", ""); // remove "en" prefix if present
-            String newUrl = baseUrl + "?cnt=" + counterValue;
-            Log.d(TAG, "New URL with counter: " + newUrl);
-
-            NdefRecord uriRecord = NdefRecord.createUri(newUrl);
-            NdefMessage newMessage = new NdefMessage(new NdefRecord[]{ uriRecord });
-
-            // === Step 3: write updated message ===
-            Log.d(TAG, "Writing NDEF...");
-            ndef.writeNdefMessage(newMessage);
+            ndef.writeNdefMessage(message);
             Log.d(TAG, "NDEF write successful");
 
-            // === Step 4: lock tag (final) ===
             try {
                 boolean locked = ndef.makeReadOnly();
                 Log.d(TAG, "Tag locked: " + locked);
@@ -440,14 +408,9 @@ private void writeNdefMessage(final NdefMessage message, final Tag tag, final Ca
 
             ndef.close();
             callbackContext.success();
-
-} catch (Exception e) {
-    StringWriter sw = new StringWriter();
-    e.printStackTrace(new PrintWriter(sw));
-    String fullError = sw.toString();
-    Log.e(TAG, "NFC write failed\n" + fullError);
-    callbackContext.error("NFC write failed:\n" + fullError);
-}
+        } catch (Exception e) {
+            callbackContext.error(e.getMessage());
+        }
     });
 }
 
