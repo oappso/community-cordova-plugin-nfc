@@ -1,6 +1,8 @@
 package com.chariotsolutions.nfc.plugin;
 
 import android.nfc.tech.NfcA;
+import java.io.StringWriter;
+import java.io.PrintWriter;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
