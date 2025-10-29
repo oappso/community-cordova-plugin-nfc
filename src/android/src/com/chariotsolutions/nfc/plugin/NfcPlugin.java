@@ -375,102 +375,68 @@ public class NfcPlugin extends CordovaPlugin {
         writeNdefMessage(new NdefMessage(records), tag, callbackContext);
     }
 
-  private void writeNdefMessage(final NdefMessage message, final Tag tag, final CallbackContext callbackContext) {
+private void writeNdefMessage(final NdefMessage message, final Tag tag, final CallbackContext callbackContext) {
     cordova.getThreadPool().execute(() -> {
         try {
             Ndef ndef = Ndef.get(tag);
-            if (ndef != null) {
-                ndef.connect();
-
-                if (!ndef.isWritable()) {
-                    callbackContext.error("Tag is already read-only");
-                    ndef.close();
-                    return;
-                }
-
-                int size = message.toByteArray().length;
-                if (ndef.getMaxSize() < size) {
-                    callbackContext.error("Tag capacity is " + ndef.getMaxSize() + " bytes, message is " + size + " bytes.");
-                    ndef.close();
-                    return;
-                }
-
-                // === Write NDEF message ===
-                ndef.writeNdefMessage(message);
-                Log.d(TAG, "NDEF write successful");
-
-                // === Transceive command (append counter or custom logic) ===
-                try {
-                    NfcA nfca = NfcA.get(tag);
-                    if (nfca != null) {
-                        nfca.connect();
-                        // Example APDU – adjust dynamically if needed
-                        String apdu = "90 5A 00 00 03 00 00 2A 00";
-                        byte[] command = hexStringToBytes(apdu.replace(" ", ""));
-                        byte[] response = nfca.transceive(command);
-                        Log.d(TAG, "Transceive response: " + bytesToHex(response));
-                        nfca.close();
-                    }
-                } catch (Exception txe) {
-                    Log.w(TAG, "Transceive failed: " + txe.getMessage());
-                }
-
-                // === Force make read-only (no condition) ===
-                try {
-                    boolean locked = ndef.makeReadOnly();
-                    Log.d(TAG, "Tag locked (read-only): " + locked);
-                } catch (Exception lockEx) {
-                    Log.w(TAG, "Lock error: " + lockEx.getMessage());
-                }
-
-                callbackContext.success();
-                ndef.close();
-
-            } else {
-                // Not formatted for NDEF yet
-                NdefFormatable formatable = NdefFormatable.get(tag);
-                if (formatable != null) {
-                    formatable.connect();
-                    formatable.format(message);
-                    // After formatting, immediately lock it
-                    try {
-                        Ndef newNdef = Ndef.get(tag);
-                        if (newNdef != null) {
-                            newNdef.connect();
-                            newNdef.makeReadOnly();
-                            newNdef.close();
-                        }
-                    } catch (Exception e) {
-                        Log.w(TAG, "Lock after format failed: " + e.getMessage());
-                    }
-                    callbackContext.success();
-                    formatable.close();
-                } else {
-                    callbackContext.error("Tag doesn't support NDEF");
-                }
+            if (ndef == null) {
+                callbackContext.error("Tag does not support NDEF");
+                return;
             }
-        } catch (FormatException | TagLostException | IOException e) {
+            ndef.connect();
+
+            if (!ndef.isWritable()) {
+                callbackContext.error("Tag is already read-only");
+                ndef.close();
+                return;
+            }
+
+            // === Step 1: read hardware counter ===
+            int counterValue = 0;
+            try {
+                NfcA nfca = NfcA.get(tag);
+                if (nfca != null) {
+                    nfca.connect();
+                    byte[] cmd = new byte[]{ (byte) 0x39, (byte) 0x00 }; // read counter cmd
+                    byte[] resp = nfca.transceive(cmd);
+                    counterValue = (resp[2] & 0xFF); // last byte = count
+                    Log.d(TAG, "Tag counter = " + counterValue);
+                    nfca.close();
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Counter read failed: " + e.getMessage());
+            }
+
+            // === Step 2: rebuild URL with counter ===
+            String baseUrl = new String(message.getRecords()[0].getPayload());
+            // remove "en" prefix if URI record
+            baseUrl = baseUrl.replaceFirst("^en", "");
+            String newUrl = baseUrl + "?cnt=" + counterValue;
+
+            NdefRecord uriRecord = NdefRecord.createUri(newUrl);
+            NdefMessage newMessage = new NdefMessage(new NdefRecord[]{ uriRecord });
+
+            // === Step 3: write updated message ===
+            ndef.writeNdefMessage(newMessage);
+            Log.d(TAG, "NDEF write successful with counter");
+
+            // === Step 4: lock tag ===
+            try {
+                boolean locked = ndef.makeReadOnly();
+                Log.d(TAG, "Tag locked: " + locked);
+            } catch (Exception e) {
+                Log.w(TAG, "Lock error: " + e.getMessage());
+            }
+
+            ndef.close();
+            callbackContext.success();
+
+        } catch (Exception e) {
             callbackContext.error(e.getMessage());
         }
     });
 }
 
-// === Helper methods ===
-private static byte[] hexStringToBytes(String s) {
-    int len = s.length();
-    byte[] data = new byte[len / 2];
-    for (int i = 0; i < len; i += 2) {
-        data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
-                + Character.digit(s.charAt(i + 1), 16));
-    }
-    return data;
-}
-
-private static String bytesToHex(byte[] bytes) {
-    StringBuilder sb = new StringBuilder();
-    for (byte b : bytes) sb.append(String.format("%02X", b));
-    return sb.toString();
-}
     private void makeReadOnly(final CallbackContext callbackContext) {
         if (getIntent() == null) {
             callbackContext.error("Failed to make tag read only, received null intent");
