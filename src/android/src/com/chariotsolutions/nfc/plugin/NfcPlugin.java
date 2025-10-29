@@ -375,45 +375,102 @@ public class NfcPlugin extends CordovaPlugin {
         writeNdefMessage(new NdefMessage(records), tag, callbackContext);
     }
 
-   private void writeNdefMessage(final NdefMessage message, final Tag tag, final CallbackContext callbackContext) {
-       cordova.getThreadPool().execute(() -> {
-           try {
-               Ndef ndef = Ndef.get(tag);
-               if (ndef != null) {
-                   ndef.connect();
-                   if (ndef.isWritable()) {
-                       int size = message.toByteArray().length;
-                       if (ndef.getMaxSize() < size) {
-                           callbackContext.error("Tag capacity is " + ndef.getMaxSize() + " bytes, message is " + size + " bytes.");
-                       } else {
-                           ndef.writeNdefMessage(message);
-                           callbackContext.success();
-                       }
-                   } else {
-                       callbackContext.error("Tag is read only");
-                   }
-                   ndef.close();
-               } else {
-                   NdefFormatable formatable = NdefFormatable.get(tag);
-                   if (formatable != null) {
-                       formatable.connect();
-                       formatable.format(message);
-                       callbackContext.success();
-                       formatable.close();
-                   } else {
-                       callbackContext.error("Tag doesn't support NDEF");
-                   }
-               }
-           } catch (FormatException e) {
-               callbackContext.error(e.getMessage());
-           } catch (TagLostException e) {
-               callbackContext.error(e.getMessage());
-           } catch (IOException e) {
-               callbackContext.error(e.getMessage());
-           }
-       });
-   }
+  private void writeNdefMessage(final NdefMessage message, final Tag tag, final CallbackContext callbackContext) {
+    cordova.getThreadPool().execute(() -> {
+        try {
+            Ndef ndef = Ndef.get(tag);
+            if (ndef != null) {
+                ndef.connect();
 
+                if (!ndef.isWritable()) {
+                    callbackContext.error("Tag is already read-only");
+                    ndef.close();
+                    return;
+                }
+
+                int size = message.toByteArray().length;
+                if (ndef.getMaxSize() < size) {
+                    callbackContext.error("Tag capacity is " + ndef.getMaxSize() + " bytes, message is " + size + " bytes.");
+                    ndef.close();
+                    return;
+                }
+
+                // === Write NDEF message ===
+                ndef.writeNdefMessage(message);
+                Log.d(TAG, "NDEF write successful");
+
+                // === Transceive command (append counter or custom logic) ===
+                try {
+                    NfcA nfca = NfcA.get(tag);
+                    if (nfca != null) {
+                        nfca.connect();
+                        // Example APDU – adjust dynamically if needed
+                        String apdu = "90 5A 00 00 03 00 00 2A 00";
+                        byte[] command = hexStringToBytes(apdu.replace(" ", ""));
+                        byte[] response = nfca.transceive(command);
+                        Log.d(TAG, "Transceive response: " + bytesToHex(response));
+                        nfca.close();
+                    }
+                } catch (Exception txe) {
+                    Log.w(TAG, "Transceive failed: " + txe.getMessage());
+                }
+
+                // === Force make read-only (no condition) ===
+                try {
+                    boolean locked = ndef.makeReadOnly();
+                    Log.d(TAG, "Tag locked (read-only): " + locked);
+                } catch (Exception lockEx) {
+                    Log.w(TAG, "Lock error: " + lockEx.getMessage());
+                }
+
+                callbackContext.success();
+                ndef.close();
+
+            } else {
+                // Not formatted for NDEF yet
+                NdefFormatable formatable = NdefFormatable.get(tag);
+                if (formatable != null) {
+                    formatable.connect();
+                    formatable.format(message);
+                    // After formatting, immediately lock it
+                    try {
+                        Ndef newNdef = Ndef.get(tag);
+                        if (newNdef != null) {
+                            newNdef.connect();
+                            newNdef.makeReadOnly();
+                            newNdef.close();
+                        }
+                    } catch (Exception e) {
+                        Log.w(TAG, "Lock after format failed: " + e.getMessage());
+                    }
+                    callbackContext.success();
+                    formatable.close();
+                } else {
+                    callbackContext.error("Tag doesn't support NDEF");
+                }
+            }
+        } catch (FormatException | TagLostException | IOException e) {
+            callbackContext.error(e.getMessage());
+        }
+    });
+}
+
+// === Helper methods ===
+private static byte[] hexStringToBytes(String s) {
+    int len = s.length();
+    byte[] data = new byte[len / 2];
+    for (int i = 0; i < len; i += 2) {
+        data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+                + Character.digit(s.charAt(i + 1), 16));
+    }
+    return data;
+}
+
+private static String bytesToHex(byte[] bytes) {
+    StringBuilder sb = new StringBuilder();
+    for (byte b : bytes) sb.append(String.format("%02X", b));
+    return sb.toString();
+}
     private void makeReadOnly(final CallbackContext callbackContext) {
         if (getIntent() == null) {
             callbackContext.error("Failed to make tag read only, received null intent");
