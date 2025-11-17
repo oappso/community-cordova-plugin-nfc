@@ -137,7 +137,7 @@
 
         <preference name="NFC_USAGE_DESCRIPTION" default="Read NFC Tags" />
         <config-file target="*-Info.plist" parent="NFCReaderUsageDescription">
-            <string>$NFC_USAGE_DESCRIPTION</string>
+     <string>This app uses NFC to read & write compatible tags.</string> 
         </config-file>
     </platform>
 
